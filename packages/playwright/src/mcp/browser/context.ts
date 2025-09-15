@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 import { debug } from 'playwright-core/lib/utilsBundle';
 
 import { logUnhandledError } from '../log';
@@ -46,6 +49,7 @@ export class Context {
   private _tabs: Tab[] = [];
   private _currentTab: Tab | undefined;
   private _clientInfo: ClientInfo;
+  private _outputDir: string | undefined;
 
   private static _allContexts: Set<Context> = new Set();
   private _closeBrowserContextPromise: Promise<void> | undefined;
@@ -113,7 +117,26 @@ export class Context {
   }
 
   async outputFile(name: string): Promise<string> {
-    return outputFile(this.config, this._clientInfo.rootPath, name);
+    if (!this._outputDir) {
+      this._outputDir = await this._computeOutputDir();
+    }
+    await fs.promises.mkdir(this._outputDir, { recursive: true });
+    const fileName = this._sanitizeForFilePath(name);
+    return path.join(this._outputDir, fileName);
+  }
+
+  private async _computeOutputDir(): Promise<string> {
+    return this.config.outputDir
+      ?? (this._clientInfo.rootPath ? path.join(this._clientInfo.rootPath, '.playwright-mcp') : undefined)
+      ?? path.join(os.tmpdir(), 'playwright-mcp-output', this._sanitizeForFilePath(new Date().toISOString()));
+  }
+
+  private _sanitizeForFilePath(s: string): string {
+    const sanitize = (s: string) => s.replace(/[\x00-\x2C\x2E-\x2F\x3A-\x40\x5B-\x60\x7B-\x7F]+/g, '-');
+    const separator = s.lastIndexOf('.');
+    if (separator === -1)
+      return sanitize(s);
+    return sanitize(s.substring(0, separator)) + '.' + sanitize(s.substring(separator + 1));
   }
 
   private _onPageCreated(page: playwright.Page) {

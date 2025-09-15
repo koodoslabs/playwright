@@ -57,7 +57,7 @@ const click = defineTabTool({
   },
 
   handle: async (tab, params, response) => {
-    response.setIncludeSnapshot();
+    response.setStoreSnapshot();
 
     const locator = await tab.refLocator(params);
     const options = {
@@ -97,7 +97,7 @@ const drag = defineTabTool({
   },
 
   handle: async (tab, params, response) => {
-    response.setIncludeSnapshot();
+    response.setStoreSnapshot();
 
     const [startLocator, endLocator] = await tab.refLocators([
       { ref: params.startRef, element: params.startElement },
@@ -123,7 +123,7 @@ const hover = defineTabTool({
   },
 
   handle: async (tab, params, response) => {
-    response.setIncludeSnapshot();
+    response.setStoreSnapshot();
 
     const locator = await tab.refLocator(params);
     response.addCode(`await page.${await generateLocator(locator)}.hover();`);
@@ -149,7 +149,7 @@ const selectOption = defineTabTool({
   },
 
   handle: async (tab, params, response) => {
-    response.setIncludeSnapshot();
+    response.setStoreSnapshot();
 
     const locator = await tab.refLocator(params);
     response.addCode(`await page.${await generateLocator(locator)}.selectOption(${javascript.formatObject(params.values)});`);
