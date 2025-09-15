@@ -16,6 +16,7 @@
 
 import { z } from '../../sdk/bundle';
 import { defineTool, defineTabTool } from './tool';
+import * as fs from 'fs';
 
 const navigate = defineTool({
   capability: 'core',
@@ -34,7 +35,7 @@ const navigate = defineTool({
     const tab = await context.ensureTab();
     await tab.navigate(params.url);
 
-    response.setIncludeSnapshot();
+    response.setStoreSnapshot();
     response.addCode(`await page.goto('${params.url}');`);
   },
 });
@@ -51,7 +52,7 @@ const goBack = defineTabTool({
 
   handle: async (tab, params, response) => {
     await tab.page.goBack();
-    response.setIncludeSnapshot();
+    response.setStoreSnapshot();
     response.addCode(`await page.goBack();`);
   },
 });

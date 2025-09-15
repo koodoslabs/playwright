@@ -19,6 +19,7 @@ import { renderModalStates } from './tab';
 import type { Tab, TabSnapshot } from './tab';
 import type { ImageContent, TextContent } from '@modelcontextprotocol/sdk/types.js';
 import type { Context } from './context';
+import * as fs from 'fs';
 
 export class Response {
   private _result: string[] = [];
@@ -26,6 +27,7 @@ export class Response {
   private _images: { contentType: string, data: Buffer }[] = [];
   private _context: Context;
   private _includeSnapshot = false;
+  private _storeSnapshot = false;
   private _includeTabs = false;
   private _tabSnapshot: TabSnapshot | undefined;
 
@@ -76,6 +78,10 @@ export class Response {
     this._includeSnapshot = true;
   }
 
+  setStoreSnapshot() {
+    this._storeSnapshot = false;
+  }
+
   setIncludeTabs() {
     this._includeTabs = true;
   }
@@ -85,6 +91,13 @@ export class Response {
     // Everything below should race against modal states.
     if (this._includeSnapshot && this._context.currentTab())
       this._tabSnapshot = await this._context.currentTabOrDie().captureSnapshot();
+    if (this._storeSnapshot && this._context.currentTab()) {
+      const snapshot = await this._context.currentTabOrDie().captureSnapshot();
+      const fileName = await this._context.currentTabOrDie().context.outputFile('current_snapshot.json');
+      
+      await fs.promises.writeFile(fileName, JSON.stringify(snapshot, null, 2));
+      this.addResult(`Snapshot saved to ${fileName}`);
+    }
     for (const tab of this._context.tabs())
       await tab.updateTitle();
   }

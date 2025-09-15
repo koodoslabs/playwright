@@ -56,7 +56,7 @@ const wait = defineTool({
     }
 
     response.addResult(`Waited for ${params.text || params.textGone || params.time}`);
-    response.setIncludeSnapshot();
+    response.setStoreSnapshot();
   },
 });
 

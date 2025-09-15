@@ -32,7 +32,7 @@ const handleDialog = defineTabTool({
   },
 
   handle: async (tab, params, response) => {
-    response.setIncludeSnapshot();
+    response.setStoreSnapshot();
 
     const dialogState = tab.modalStates().find(state => state.type === 'dialog');
     if (!dialogState)
