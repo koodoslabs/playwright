@@ -1,0 +1,69 @@
+name: "Build and Publish Dist"
+
+on:
+  push:
+    branches:
+      - koodos-main
+
+env:
+  ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+
+jobs:
+  build-and-publish:
+    name: "Build and publish to koodos-dist branch"
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write  # Required to push to koodos-dist branch
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+        with:
+          ref: koodos-main
+          fetch-depth: 0  # Fetch all history for proper git operations
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Commit and push to koodos-dist
+        run: |
+          # Get the current commit hash and message for reference
+          COMMIT_HASH=$(git rev-parse HEAD)
+          COMMIT_MSG=$(git log -1 --pretty=format:"%s")
+
+          # Check if koodos-dist branch exists remotely
+          git fetch origin koodos-dist:koodos-dist || git checkout -b koodos-dist
+
+          # If branch exists, check it out
+          git checkout koodos-dist || git checkout -b koodos-dist
+
+          # Remove all files except .git
+          git rm -rf . || true
+
+          # Checkout built files from koodos-main
+          git checkout koodos-main -- .
+
+          # Remove node_modules and other build artifacts we don't want in dist
+          rm -rf node_modules
+          rm -rf .github
+
+          # Stage all changes
+          git add -A
+
+          # Commit with reference to source commit
+          git commit -m "Build from koodos-main@${COMMIT_HASH:0:7}: ${COMMIT_MSG}" || echo "No changes to commit"
+
+          # Push to koodos-dist branch
+          git push origin koodos-dist --force
