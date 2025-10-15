@@ -1,0 +1,81 @@
+name: "Build and Publish Dist"
+
+on:
+  push:
+    branches:
+      - koodos-main
+
+env:
+  ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+
+jobs:
+  build-and-publish:
+    name: "Build and publish to koodos-dist branch"
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write  # Required to push to koodos-dist branch
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+        with:
+          ref: koodos-main
+          fetch-depth: 0  # Fetch all history for proper git operations
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+
+      - name: Prepare dist directory
+        run: |
+          # Create a temporary directory for our dist content
+          mkdir -p /tmp/playwright-dist
+
+          # Copy everything except node_modules and git
+          rsync -av --exclude='node_modules' --exclude='.git' --exclude='.github/workflows' . /tmp/playwright-dist/
+
+          # Update .gitignore to remove the packages/*/lib/ exclusion
+          # This allows the lib directories to be committed to koodos-dist
+          sed -i '/^packages\/\*\/lib\/$/d' /tmp/playwright-dist/.gitignore
+
+          # Get source commit info
+          echo "SOURCE_COMMIT=$(git rev-parse HEAD)" >> $GITHUB_ENV
+          echo "SOURCE_MSG=$(git log -1 --pretty=format:'%s')" >> $GITHUB_ENV
+
+      - name: Checkout koodos-dist branch
+        uses: actions/checkout@v5
+        with:
+          ref: koodos-dist
+          clean: false  # Don't clean our workspace
+          path: dist-branch
+
+      - name: Update dist branch content
+        run: |
+          cd dist-branch
+
+          # Remove all existing content except .git
+          find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+
+          # Copy new content from temp directory
+          cp -r /tmp/playwright-dist/. .
+
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Force add everything including gitignored lib directories
+          git add -A -f
+
+          # Commit and push
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Build from koodos-main@${SOURCE_COMMIT:0:7}: ${SOURCE_MSG}"
+            git push origin koodos-dist
+          fi
